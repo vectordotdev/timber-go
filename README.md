@@ -1,3 +1,3 @@
-# Timber.io - Powerful Go Logging
+# Timber.io - Master your Go apps with structured logging
 
-The Go library for Timber is currently under development. Add your email to https://timber.io and we'll notify you when it's ready!
+:point_right: **Timber for GO is under development and in beta testing. If interested in joining, please email us at [beta@timber.io](mailto:beta@timber.io)**
