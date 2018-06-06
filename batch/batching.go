@@ -2,10 +2,11 @@ package batch
 
 import (
 	"bytes"
-	"io"
 	"log"
 	"os"
 	"time"
+
+	"github.com/timberio/timber-go/logging"
 )
 
 var (
@@ -18,7 +19,7 @@ var (
 
 type Batcher struct {
 	BufferChan chan *bytes.Buffer
-	Lines      chan string
+	ByteChan   chan []byte
 
 	Config
 }
@@ -27,7 +28,7 @@ type Config struct {
 	Period time.Duration
 	Size   int
 
-	Logger *log.Logger
+	Logger logging.Logger
 }
 
 func DefaultConfig() Config {
@@ -39,7 +40,7 @@ func DefaultConfig() Config {
 	}
 }
 
-func NewBatcher(lines chan string, config Config) *Batcher {
+func NewBatcher(byteChan chan []byte, config Config) *Batcher {
 	defaultConfig := DefaultConfig()
 
 	if config.Period == 0 {
@@ -56,7 +57,7 @@ func NewBatcher(lines chan string, config Config) *Batcher {
 
 	batcher := &Batcher{
 		BufferChan: make(chan *bytes.Buffer),
-		Lines:      lines,
+		ByteChan:   byteChan,
 		Config:     config,
 	}
 
@@ -65,10 +66,10 @@ func NewBatcher(lines chan string, config Config) *Batcher {
 	return batcher
 }
 
-func Batch(lines chan string) *Batcher {
+func Batch(byteChan chan []byte) *Batcher {
 	batcher := &Batcher{
 		BufferChan: make(chan *bytes.Buffer),
-		Lines:      lines,
+		ByteChan:   byteChan,
 		Config:     DefaultConfig(),
 	}
 
@@ -83,23 +84,24 @@ func (batcher *Batcher) batch() {
 
 	for {
 		select {
-		case line, ok := <-batcher.Lines:
+		case b, ok := <-batcher.ByteChan:
 			if ok {
-				if len(line)+1 > buffer.Cap() {
+				if len(b)+1 > buffer.Cap() {
 					// @TODO track souce?
 					// @TODO more informative log line
 					// have callback channel for results
-					batcher.Logger.Printf("Dropping log line greater than the max buffer size")
+					batcher.Logger.Print("Dropping log line greater than the max buffer size")
 					continue
 				}
 
-				if buffer.Len()+len(line)+1 > buffer.Cap() {
+				if buffer.Len()+len(b)+1 > buffer.Cap() {
 					batcher.BufferChan <- buffer
 					buffer = freshBuffer(batcher.Size)
 				}
 
-				if len(line) > 0 {
-					io.WriteString(buffer, line+"\n")
+				if len(b) > 0 {
+					b = append(b, []byte("\n")...)
+					buffer.Write(b)
 				}
 
 			} else { // channel is closed

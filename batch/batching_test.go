@@ -7,14 +7,14 @@ import (
 )
 
 func TestChannelClosing(t *testing.T) {
-	lines := make(chan string)
+	byteChan := make(chan []byte)
 
-	batcher := NewBatcher(lines, Config{
+	batcher := NewBatcher(byteChan, Config{
 		Period: 10 * time.Second,
 	})
 
-	batcher.Lines <- "test log line"
-	close(batcher.Lines)
+	batcher.ByteChan <- []byte("test log line")
+	close(batcher.ByteChan)
 
 	actual := <-batcher.BufferChan
 	expected := "test log line\n"
@@ -24,16 +24,16 @@ func TestChannelClosing(t *testing.T) {
 }
 
 func TestBufferOverflow(t *testing.T) {
-	lines := make(chan string)
-	batcher := NewBatcher(lines, DefaultConfig())
+	byteChan := make(chan []byte)
+	batcher := NewBatcher(byteChan, DefaultConfig())
 
-	filler := "test log line"
+	filler := []byte("test log line")
 	fillerLen := len(filler) + 1
 	for written := 0; written+fillerLen < 990000; written += fillerLen {
-		batcher.Lines <- filler
+		batcher.ByteChan <- filler
 	}
-	batcher.Lines <- "overflowed"
-	close(batcher.Lines)
+	batcher.ByteChan <- []byte("overflowed")
+	close(batcher.ByteChan)
 
 	<-batcher.BufferChan // throw away the big one
 	actual := <-batcher.BufferChan
@@ -46,8 +46,8 @@ func TestBufferOverflow(t *testing.T) {
 // Batch()
 // Log lines larger than the max payload size (1 MB) should be dropped
 func TestBatchDropLogLine(t *testing.T) {
-	lines := make(chan string)
-	batcher := NewBatcher(lines, DefaultConfig())
+	byteChan := make(chan []byte)
+	batcher := NewBatcher(byteChan, DefaultConfig())
 
 	filler := "test log line"
 	buf := bytes.NewBuffer(make([]byte, defaultBufferSize))
@@ -57,8 +57,8 @@ func TestBatchDropLogLine(t *testing.T) {
 	logline := buf.String()
 
 	// go Batch(lines, bufChan, 10)
-	batcher.Lines <- logline
-	close(batcher.Lines)
+	batcher.ByteChan <- []byte(logline)
+	close(batcher.ByteChan)
 
 	// Nothing should be sent to bufChan since we are dropping message
 	actual := <-batcher.BufferChan
