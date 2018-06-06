@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -13,8 +12,8 @@ import (
 )
 
 var (
-	// Added at compile time
-	version string
+	// Replaced at compile time
+	version = "undefined"
 
 	defaultHTTPForwarderEndpoint = "https://logs.timber.io/frames"
 	defaultHTTPForwarderTimeout  = 10 * time.Second
@@ -64,7 +63,7 @@ func NewHTTPForwarder(apiKey string, config Config) (*HTTPForwarder, error) {
 	}
 
 	httpClient := retryablehttp.NewClient()
-	httpClient.Logger = config.Logger.(*log.Logger)
+	httpClient.Logger = logging.DiscardingLogger
 	httpClient.HTTPClient.Timeout = defaultHTTPForwarderTimeout
 
 	return &HTTPForwarder{
